@@ -15,7 +15,7 @@ jobs:
         image: selenium/standalone-chrome:latest
         options: >-
           --shm-size=2g
-          --detach
+          
 
     steps:
     - name: Checkout repository
