@@ -35,8 +35,11 @@ jobs:
 
       - name: Run tests (Pytest + Selenium)
         run: |
-          source .venv/bin/activate
-          pytest tests/ --junitxml=reports/unit_results.xml --html=reports/selenium_report.html
+          pip install -r requirements.txt
+          pytest tests/ \
+          --junitxml=reports/unit_results.xml \
+          --html=reports/selenium_report.html
+
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
