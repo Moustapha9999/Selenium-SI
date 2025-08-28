@@ -10,6 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      chrome:
+        image: selenium/standalone-chrome:latest
+        options: >-
+          --shm-size=2g
+          --detach
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -23,10 +30,24 @@ jobs:
       run: |
         python -m venv .venv
         source .venv/bin/activate
+        pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r reports/requirements.txt
+        pip install pytest pytest-html pytest-metadata
 
-    - name: Run tests
+    - name: Start Flask app
+      run: |
+        source .venv/bin/activate
+        nohup python app/app.py &
+        sleep 5
+
+    - name: Run tests (Pytest + Selenium)
       run: |
         source .venv/bin/activate
         pytest tests/ --junitxml=reports/unit_results.xml --html=reports/selenium_report.html
+
+    - name: Upload test reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-reports
+        path: reports/
