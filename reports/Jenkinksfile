@@ -3,14 +3,16 @@ pipeline {
 
     environment {
         VENV_DIR = "${WORKSPACE}/.venv"
+        export PYTHONPATH=$WORKSPACE
+        
     }
 
     stages {
         stage('Setup') {
             steps {
-                echo 'Création de l’environnement virtuel...'
-                sh 'python -m venv .venv'
+                echo 'Création de l’environnement virtuel et installation des dépendances...'
                 sh '''
+                    python -m venv .venv
                     .venv/bin/pip install --upgrade pip
                     .venv/bin/pip install -r app/requirements.txt
                     .venv/bin/pip install -r reports/requirements.txt || true
@@ -21,30 +23,43 @@ pipeline {
         stage('Lint') {
             steps {
                 echo 'Linting avec flake8...'
-                sh '.venv/bin/pip install flake8'
-                sh '.venv/bin/flake8 app/ tests/'
+                sh '''
+                    .venv/bin/pip install flake8
+                    .venv/bin/flake8 app/ tests/
+                '''
             }
         }
 
         stage('Run Unit Tests') {
             steps {
                 echo 'Exécution des tests unitaires...'
-                sh '.venv/bin/pytest tests/ --maxfail=1 --disable-warnings -v'
+                sh '''
+                    .venv/bin/pytest tests/ --maxfail=1 --disable-warnings -v --junitxml=reports/unit_results.xml
+                '''
+                junit 'reports/unit_results.xml'
             }
         }
 
         stage('Run Selenium Tests') {
             steps {
-                echo 'Exécution des tests Selenium...'
-                sh '.venv/bin/pytest tests/test_selenium_flask.py -v'
+                echo 'Exécution des tests Selenium en headless...'
+                sh '''
+                    .venv/bin/pytest tests/test_selenium_flask.py -v --html=reports/selenium_report.html
+                '''
             }
         }
 
-        stage('Report') {
+        stage('Deploy') {
+            when {
+                expression {
+                    // Déploiement seulement si tous les tests sont passés
+                    currentBuild.result == null || currentBuild.result == 'SUCCESS'
+                }
+            }
             steps {
-                echo 'Génération des rapports (JUnit XML)...'
-                sh '.venv/bin/pytest --junitxml=reports/results.xml'
-                junit 'reports/results.xml'
+                echo 'Déploiement de l’application Flask...'
+                // Exemple : lancer ton app Flask dans un container Docker ou sur le serveur
+                // sh 'docker-compose up -d' ou autre commande de déploiement
             }
         }
     }
@@ -52,13 +67,15 @@ pipeline {
     post {
         always {
             echo 'Nettoyage post-build...'
-            
+            // Optionnel : supprimer l'environnement virtuel pour un build propre
+            // sh 'rm -rf .venv'
         }
         success {
-            echo 'Build réussi !'
+            echo '✅ Build réussi, tous les tests passent !'
         }
         failure {
-            echo 'Build échoué !'
+            echo '❌ Build échoué, vérifie les erreurs dans la console et les rapports.'
         }
     }
 }
+
